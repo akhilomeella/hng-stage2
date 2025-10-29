@@ -3,6 +3,7 @@ const mysql = require("mysql2/promise");
 const axios = require("axios");
 const { createCanvas } = require("canvas");
 const fs = require("fs").promises;
+const files = require("fs");
 const path = require("path");
 require("dotenv").config();
 
@@ -15,7 +16,9 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "countries_db",
-  ssl: { ca: process.env.DB_CERT.replace(/\\n/g, "\n") },
+  ssl: {
+    ca: files.readFileSync("ca.pem"),
+  },
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
