@@ -357,12 +357,10 @@ app.get("/countries/image", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 initDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
+  .then(() => console.log("Database connected"))
   .catch((err) => {
-    console.error("Failed to initialize database:", err);
-    process.exit(1);
+    console.error("Database init failed, continuing startup:", err.message);
+  })
+  .finally(() => {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   });
