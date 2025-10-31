@@ -283,6 +283,17 @@ app.get("/countries", async (req, res) => {
   }
 });
 
+// GET /countries/image
+app.get("/countries/image", async (req, res) => {
+  try {
+    const imagePath = path.join(__dirname, "cache", "summary.png");
+    await fs.access(imagePath);
+    res.sendFile(imagePath);
+  } catch (error) {
+    res.status(404).json({ error: "Summary image not found" });
+  }
+});
+
 // GET /countries/:name
 app.get("/countries/:name", async (req, res) => {
   try {
@@ -339,17 +350,6 @@ app.get("/status", async (req, res) => {
   } catch (error) {
     console.error("Status error:", error);
     res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// GET /countries/image
-app.get("/countries/image", async (req, res) => {
-  try {
-    const imagePath = path.join(__dirname, "cache", "summary.png");
-    await fs.access(imagePath);
-    res.sendFile(imagePath);
-  } catch (error) {
-    res.status(404).json({ error: "Summary image not found" });
   }
 });
 
