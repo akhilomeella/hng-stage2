@@ -1,4 +1,4 @@
-const pool = require("../database");
+const pool = require("../db/database");
 const axios = require("axios");
 const generateSummaryImage = require("../generate_img");
 

@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
-const pool = require("./database");
+const pool = require("./db/database");
 const refreshRouter = require("./routes/refreshCountries");
 const allRouter = require("./routes/allCountries");
 
