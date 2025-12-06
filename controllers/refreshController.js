@@ -7,21 +7,20 @@ const refreshCountries = async (req, res) => {
 
   try {
     // Fetch countries data
-    const countriesResponse = await axios.get(
-      "https://restcountries.com/v2/all?fields=name,capital,region,population,flag,currencies",
-      { timeout: 10000 }
-    );
-
-    // Fetch exchange rates
-    const ratesResponse = await axios.get(
-      "https://open.er-api.com/v6/latest/USD",
-      { timeout: 10000 }
-    );
+    const [countriesResponse, ratesResponse] = await Promise.all([
+      axios.get(
+        "https://restcountries.com/v2/all?fields=name,capital,region,population,flag,currencies",
+        { timeout: 10000 }
+      ),
+      axios.get("https://open.er-api.com/v6/latest/USD", { timeout: 10000 }),
+    ]);
 
     const countries = countriesResponse.data;
     const exchangeRates = ratesResponse.data.rates;
 
     await connection.beginTransaction();
+
+    const valuesToInsert = [];
 
     for (const country of countries) {
       let currencyCode = null;
@@ -43,13 +42,27 @@ const refreshCountries = async (req, res) => {
         }
       }
 
-      // Upsert country
+      //push data into the array for bulk insert to optimize performance
+      valuesToInsert.push([
+        country.name,
+        country.capital || null,
+        country.region || null,
+        country.population,
+        currencyCode,
+        exchangeRate,
+        estimatedGdp,
+        country.flag || null,
+        new Date(),
+      ]);
+    }
+    // Upsert country
+    if (valuesToInsert.length > 0) {
       await connection.query(
         `
         INSERT INTO countries (
           name, capital, region, population, currency_code, 
           exchange_rate, estimated_gdp, flag_url, last_refreshed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ) VALUES ?
         ON DUPLICATE KEY UPDATE
           capital = VALUES(capital),
           region = VALUES(region),
@@ -60,16 +73,7 @@ const refreshCountries = async (req, res) => {
           flag_url = VALUES(flag_url),
           last_refreshed_at = NOW()
       `,
-        [
-          country.name,
-          country.capital || null,
-          country.region || null,
-          country.population,
-          currencyCode,
-          exchangeRate,
-          estimatedGdp,
-          country.flag || null,
-        ]
+        [valuesToInsert]
       );
     }
 
@@ -80,7 +84,7 @@ const refreshCountries = async (req, res) => {
 
     await connection.commit();
 
-    // Generate summary image
+    // Gather Stats for Image
     const [topCountries] = await connection.query(`
       SELECT name, estimated_gdp 
       FROM countries 
@@ -97,16 +101,21 @@ const refreshCountries = async (req, res) => {
       SELECT last_refreshed_at FROM refresh_metadata WHERE id = 1
     `);
 
-    await generateSummaryImage({
-      total: countResult[0].total,
-      timestamp: metaResult[0].last_refreshed_at.toISOString(),
-      topCountries: topCountries,
-    });
-
     res.json({
       message: "Countries data refreshed successfully",
       total_countries: countResult[0].total,
     });
+
+    //  Generate Image in Background
+    try {
+      await generateSummaryImage({
+        total: countResult[0].total,
+        timestamp: metaResult[0].last_refreshed_at.toISOString(),
+        topCountries: topCountries,
+      });
+    } catch (imgError) {
+      console.error("Image generation failed:", imgError);
+    }
   } catch (error) {
     await connection.rollback();
 
