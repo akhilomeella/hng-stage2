@@ -1,5 +1,6 @@
 const { createCanvas } = require("canvas");
 const fs = require("fs").promises;
+const path = require("path");
 
 async function generateSummaryImage(stats) {
   const width = 800;
